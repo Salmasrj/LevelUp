@@ -1,0 +1,82 @@
+<footer class="main-footer">
+    <div class="container">
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/images/logo-white.svg" alt="LevelUp">
+                <p>Développez vos compétences, transformez votre avenir</p>
+            </div>
+            
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Formations</h4>
+                    <ul>
+                        <li><a href="/formations/1">JavaScript Mastery</a></li>
+                        <li><a href="/formations/2">Full-Stack Web Development</a></li>
+                        <li><a href="/formations/3">UI/UX Design Fundamentals</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-col">
+                    <h4>À propos</h4>
+                    <ul>
+                        <li><a href="/">Accueil</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                        <li><a href="#testimonials">Témoignages</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-newsletter">
+                <h4>Restez informé</h4>
+                <p>Abonnez-vous à notre newsletter pour recevoir nos dernières nouvelles et promotions.</p>
+                <form class="newsletter-form">
+                    <input type="email" placeholder="Votre email" required>
+                    <button type="submit" class="btn btn-primary">S'abonner</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <div class="copyright">
+                &copy; <%= new Date().getFullYear() %> LevelUp. Tous droits réservés.
+            </div>
+            
+            <div class="social-links">
+                <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            </div>
+            
+            <div class="legal-links">
+                <a href="/privacy">Politique de confidentialité</a>
+                <a href="/terms">Conditions d'utilisation</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="/js/main.js">
+    // Mobile menu toggle
+    document.querySelector('.mobile-menu-toggle').addEventListener('click', function() {
+        this.classList.toggle('active');
+        document.querySelector('.mobile-menu').classList.toggle('active');
+        document.body.classList.toggle('menu-open');
+    });
+    
+    // User dropdown toggle
+    const userMenuButton = document.querySelector('.user-menu-button');
+    if (userMenuButton) {
+        userMenuButton.addEventListener('click', function() {
+            document.querySelector('.user-dropdown').classList.toggle('active');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userMenu = document.querySelector('.user-menu');
+            if (userMenu && !userMenu.contains(event.target)) {
+                document.querySelector('.user-dropdown').classList.remove('active');
+            }
+        });
+    }
+</script>

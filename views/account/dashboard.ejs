@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <%- include('../partials/head') %>
+    <title>Mon compte - LevelUp</title>
+</head>
+<body>
+    <%- include('../partials/header') %>
+    
+    <section class="dashboard-section">
+        <div class="container">
+            <h1>Bienvenue, <%= user.name %> !</h1>
+            
+            <div class="dashboard-grid">
+                <div class="dashboard-sidebar">
+                    <div class="user-profile">
+                        <div class="profile-image">
+                            <img src="/images/default-avatar.png" alt="Photo de profil">
+                        </div>
+                        <h3><%= user.name %></h3>
+                        <p class="user-email"><%= user.email %></p>
+                    </div>
+                    
+                    <nav class="dashboard-nav">
+                        <a href="/auth/dashboard" class="active">Mes formations</a>
+                        <a href="/payment/orders">Mes commandes (pas encore disponible)</a>
+                        <a href="/auth/settings">Paramètres du compte (pas encore disponible)</a>
+                    </nav>
+                </div>
+                
+                <div class="dashboard-content">
+                    <div class="dashboard-header">
+                        <h2>Mes formations</h2>
+                    </div>
+                    
+                    <% if (courses && courses.length > 0) { %>
+                        <div class="user-courses">
+                            <% courses.forEach(course => { %>
+                                <div class="user-course-card">
+                                    <div class="course-image">
+                                        <img src="<%= course.image_path %>" alt="<%= course.title %>">
+                                    </div>
+                                    <div class="course-info">
+                                        <h3><%= course.title %></h3>
+                                        <div class="course-progress">
+                                            <div class="progress-bar">
+                                                <div class="progress" style="width: '<%= course.progress %>%'"></div>
+                                            </div>
+                                            <span><%= course.progress %>% complété</span>
+                                        </div>
+                                        <a href="/formations/<%= course.id %>" class="btn btn-primary">Continuer</a>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } else { %>
+                        <div class="no-courses">
+                            <img src="/images/no-courses.svg" alt="Pas de formations">
+                            <h3>Vous n'avez pas encore de formations</h3>
+                            <p>Découvrez nos formations et commencez votre apprentissage dès aujourd'hui !</p>
+                            <a href="/#formations" class="btn btn-primary">Explorer les formations</a>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <%- include('../partials/footer') %>
+</body>
+</html>

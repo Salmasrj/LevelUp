@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation de commande - LevelUp</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #4f46e5;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+            margin: 0;
+        }
+        .content {
+            padding: 20px;
+            background-color: #f9fafb;
+        }
+        .order-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .course-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Confirmation de commande</h1>
+        </div>
+        <div class="content">
+            <h2>Merci pour votre achat, <%= order.user.name %>!</h2>
+            <p>Votre commande a été confirmée et traitée avec succès.</p>
+            
+            <div class="order-details">
+                <h3>Détails de la commande</h3>
+                <p><strong>Numéro de commande:</strong> <%= order.id %></p>
+                <p><strong>Date:</strong> <%= new Date(order.created_at).toLocaleDateString() %></p>
+                
+                <h4>Formations achetées:</h4>
+                <% order.items.forEach(item => { %>
+                    <div class="course-item">
+                        <span><%= item.course.title %></span>
+                        <span><%= item.price.toFixed(2) %>€</span>
+                    </div>
+                <% }); %>
+                
+                <div class="total">
+                    <span>Total</span>
+                    <span><%= order.total_amount.toFixed(2) %>€</span>
+                </div>
+            </div>
+            
+            <p>Vous pouvez accéder à vos formations dès maintenant en vous connectant à votre compte.</p>
+            <a href="<%= process.env.BASE_URL || 'http://localhost:3000' %>/auth/dashboard" class="button">Accéder à mes formations</a>
+        </div>
+        <div class="footer">
+            <p>&copy; <%= new Date().getFullYear() %> LevelUp. Tous droits réservés.</p>
+            <p>Pour toute question concernant votre commande, contactez-nous à support@levelup.com</p>
+        </div>
+    </div>
+</body>
+</html>

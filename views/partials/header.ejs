@@ -1,0 +1,75 @@
+<header class="main-header">
+    <div class="container">
+        <div class="header-content">
+            <div class="logo">
+                <a href="/">
+                    <img src="/images/logo.svg" alt="LevelUp">
+                </a>
+            </div>
+            
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/">Accueil</a></li>
+                    <li><a href="/#formations">Formations</a></li>
+                    <li><a href="/#about">À propos</a></li>
+                    <li><a href="/#contact">Contact</a></li>
+                </ul>
+            </nav>
+            
+            <div class="header-actions">
+                <% if (locals.user) { %>
+                    <a href="/cart" class="cart-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                        <% if (locals.cartCount && locals.cartCount > 0) { %>
+                            <span class="cart-badge"><%= locals.cartCount %></span>
+                        <% } %>
+                    </a>
+                    <div class="user-menu">
+                        <button class="user-menu-button">
+                            <img src="/images/default-avatar.png" alt="Avatar" class="user-avatar">
+                            <span><%= locals.user.name.split(' ')[0] %></span>
+                        </button>
+                        <div class="user-dropdown">
+                            <a href="/auth/dashboard">Mon compte</a>
+                            <a href="/auth/dashboard#courses">Mes formations</a>
+                            <a href="/auth/logout">Déconnexion</a>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <a href="/cart" class="cart-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                        <% if (locals.cartCount && locals.cartCount > 0) { %>
+                            <span class="cart-badge"><%= locals.cartCount %></span>
+                        <% } %>
+                    </a>
+                    <a href="/auth/login" class="btn btn-outline">Se connecter</a>
+                    <a href="/auth/register" class="btn btn-primary">S'inscrire</a>
+                <% } %>
+                
+                <button class="mobile-menu-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="mobile-menu">
+    <nav>
+        <ul>
+            <li><a href="/">Accueil</a></li>
+            <li><a href="/#formations">Formations</a></li>
+            <li><a href="/#about">À propos</a></li>
+            <li><a href="/#contact">Contact</a></li>
+            <% if (locals.user) { %>
+                <li><a href="/auth/dashboard">Mon compte</a></li>
+                <li><a href="/auth/logout">Déconnexion</a></li>
+            <% } else { %>
+                <li><a href="/auth/login">Se connecter</a></li>
+                <li><a href="/auth/register">S'inscrire</a></li>
+            <% } %>
+        </ul>
+    </nav>
+</div>

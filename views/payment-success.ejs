@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <%- include('./partials/head') %>
+    <title>Paiement Réussi - LevelUp</title>
+</head>
+<body>
+    <%- include('./partials/header') %>
+    
+    <section class="payment-result success">
+        <div class="container">
+            <div class="payment-result-content">
+                <div class="result-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h1>Paiement confirmé !</h1>
+                <p>Votre commande a été traitée avec succès.</p>
+                <% if (locals.orderId) { %>
+                    <p class="order-id">Numéro de commande : <strong><%= orderId %></strong></p>
+                <% } %>
+                <p>Un email de confirmation a été envoyé à votre adresse email.</p>
+                
+                <div class="action-buttons">
+                    <a href="/auth/dashboard" class="btn btn-primary">Accéder à mes formations</a>
+                    <a href="/" class="btn btn-outline">Retour à l'accueil</a>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <%- include('./partials/footer') %>
+    
+    <!-- Add CSS for this page -->
+    <style>
+        .payment-result {
+            padding: 5rem 0;
+            text-align: center;
+        }
+        
+        .payment-result-content {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 3rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .result-icon {
+            font-size: 5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .success .result-icon {
+            color: var(--secondary-color);
+        }
+        
+        .order-id {
+            background-color: var(--gray-100);
+            padding: 0.75rem;
+            border-radius: var(--border-radius);
+            margin: 1.5rem 0;
+        }
+        
+        .action-buttons {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .payment-result-content {
+                padding: 2rem 1.5rem;
+            }
+        }
+    </style>
+</body>
+</html>

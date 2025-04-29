@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <%- include('./partials/head') %>
+    <title>Erreur - LevelUp</title>
+</head>
+<body>
+    <%- include('./partials/header') %>
+    
+    <section class="error-section">
+        <div class="container">
+            <div class="error-content">
+                <img src="/images/error.svg" alt="Erreur">
+                <h1>Oops ! Une erreur est survenue</h1>
+                <% if (message) { %>
+                    <p><%= message %></p>
+                <% } else { %>
+                    <p>Nous sommes désolés, quelque chose s'est mal passé.</p>
+                <% } %>
+                <a href="/" class="btn btn-primary">Retour à l'accueil</a>
+            </div>
+        </div>
+    </section>
+    
+    <%- include('./partials/footer') %>
+</body>
+</html>

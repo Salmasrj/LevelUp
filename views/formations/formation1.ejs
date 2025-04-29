@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <%- include('../partials/head') %>
+    <title><%= course.title %> - LevelUp</title>
+</head>
+<body>
+    <%- include('../partials/header') %>
+    
+    <div class="course-header">
+        <div class="container">
+            <nav class="breadcrumb">
+                <a href="/">Accueil</a> &gt; 
+                <a href="/#formations">Formations</a> &gt; 
+                <span><%= course.title %></span>
+            </nav>
+        </div>
+    </div>
+    
+    <section class="course-details">
+        <div class="container">
+            <div class="course-main">
+                <div class="course-intro">
+                    <h1><%= course.title %></h1>
+                    <div class="course-meta">
+                        <span class="course-duration"><i class="far fa-clock"></i> <%= course.duration %></span>
+                        <span class="course-level"><i class="fas fa-signal"></i> Tous niveaux</span>
+                    </div>
+                    <div class="course-image">
+                        <img src="<%= course.image_path %>" alt="<%= course.title %>">
+                    </div>
+                    <div class="course-description">
+                        <h2>Description du cours</h2>
+                        <p><%= course.description %></p>
+                        
+                        <h2>Ce que vous allez apprendre</h2>
+                        <ul class="course-benefits">
+                            <li>Maîtriser les fondamentaux de JavaScript</li>
+                            <li>Comprendre les fonctionnalités ES6+ modernes</li>
+                            <li>Développer des applications asynchrones efficaces</li>
+                            <li>Manipuler le DOM comme un expert</li>
+                            <li>Créer des applications web interactives</li>
+                        </ul>
+                        
+                        <h2>Programme du cours</h2>
+                        <div class="course-curriculum">
+                            <div class="curriculum-section">
+                                <div class="section-header">
+                                    <h3>Module 1: Introduction à JavaScript</h3>
+                                    <span>3 leçons • 2 heures</span>
+                                </div>
+                                <ul class="section-lessons">
+                                    <li>Les bases de JavaScript</li>
+                                    <li>Variables et types de données</li>
+                                    <li>Structures de contrôle</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="curriculum-section">
+                                <div class="section-header">
+                                    <h3>Module 2: Fonctions avancées</h3>
+                                    <span>4 leçons • 3 heures</span>
+                                </div>
+                                <ul class="section-lessons">
+                                    <li>Fonctions et portées</li>
+                                    <li>Closures et contexte</li>
+                                    <li>Arrow functions</li>
+                                    <li>Programmation fonctionnelle</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="course-sidebar">
+                <div class="course-card">
+                    <div class="course-price">
+                        <h3><%= course.price.toFixed(2) %>€</h3>
+                    </div>
+                    <form action="/cart/add/<%= course.id %>" method="POST" class="add-to-cart-form">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="btn btn-primary btn-block">Ajouter au panier</button>
+                    </form>
+                    <div class="course-includes">
+                        <h4>Ce cours inclut :</h4>
+                        <ul>
+                            <li><i class="fas fa-video"></i> 25 vidéos à la demande</li>
+                            <li><i class="fas fa-file"></i> 15 ressources téléchargeables</li>
+                            <li><i class="fas fa-infinity"></i> Accès à vie</li>
+                            <li><i class="fas fa-mobile-alt"></i> Accès mobile</li>
+                            <li><i class="fas fa-certificate"></i> Certificat d'accomplissement</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="instructor-card">
+                    <h3>Votre instructeur</h3>
+                    <div class="instructor-profile">
+                        <img src="/images/instructor.jpg" alt="Instructeur">
+                        <h4>Jean Dupont</h4>
+                        <p>Expert JavaScript avec 10+ ans d'expérience</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <%- include('../partials/footer') %>
+</body>
+</html>

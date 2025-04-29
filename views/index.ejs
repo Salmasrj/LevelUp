@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <%- include('./partials/head') %>
+    <title>LevelUp - Formations en ligne pour booster vos compétences</title>
+</head>
+<body>
+    <%- include('./partials/header') %>
+
+    <!-- Notification -->
+    <% if (locals.notification) { %>
+        <div class="notification-banner notification-<%= notification.type %>">
+            <div class="container">
+                <p><%= notification.message %></p>
+                <button class="close-notification">&times;</button>
+            </div>
+        </div>
+    <% } %>
+    
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Développez vos compétences avec LevelUp</h1>
+                <p>Des formations en ligne de haute qualité pour vous aider à atteindre vos objectifs professionnels</p>
+                <a href="#formations" class="btn btn-primary">Découvrir nos formations</a>
+            </div>
+            <div class="hero-image">
+                <img src="/images/hero-image.svg" alt="Apprentissage en ligne">
+            </div>
+        </div>
+    </section>
+    
+    
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <div class="about-content">
+                <h2>À propos de LevelUp</h2>
+                <p>LevelUp est une plateforme d'apprentissage en ligne créée par des experts passionnés par le partage de connaissances. Notre mission est de rendre l'éducation accessible, engageante et efficace pour tous.</p>
+                <p>Avec nos formations soigneusement conçues, vous pouvez acquérir de nouvelles compétences à votre rythme, où que vous soyez.</p>
+            </div>
+            <div class="about-image">
+                <img src="/images/about-image.jpg" alt="Notre équipe">
+            </div>
+        </div>
+    </section>
+    
+    <!-- Formations Section -->
+    <section id="formations" class="formations">
+        <div class="container">
+            <h2>Nos Formations</h2>
+            <div class="formations-grid">
+                <% courses.forEach(course => { %>
+                    <%- include('./partials/course-card', {course: course}) %>
+                <% }); %>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Testimonials -->
+    <section id="testimonials" class="testimonials">
+        <div class="container">
+            <h2>Ce que disent nos étudiants</h2>
+            <div class="testimonials-slider">
+                <div class="testimonial-item">
+                    <p>"Grâce à LevelUp, j'ai pu acquérir des compétences concrètes qui m'ont permis de décrocher un nouveau poste. La qualité des cours est exceptionnelle !"</p>
+                    <div class="testimonial-author">
+                        <img src="/images/testimonial-1.jpg" alt="Marie L.">
+                        <span>Marie L.</span>
+                    </div>
+                </div>
+                <div class="testimonial-item">
+                    <p>"Les formations sont très bien structurées et les exercices pratiques m'ont beaucoup aidé à consolider mes connaissances."</p>
+                    <div class="testimonial-author">
+                        <img src="/images/testimonial-2.jpg" alt="Thomas D.">
+                        <span>Thomas D.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Replace the current contact section with this improved version -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2>Contactez-nous</h2>
+            <div class="contact-grid">
+                <!-- Contact Info Card -->
+                <div class="contact-card info-card">
+                    <h3><i class="fas fa-info-circle"></i> Besoin d'aide ?</h3>
+                    <p>Nous sommes là pour répondre à toutes vos questions.</p>
+                    <ul class="contact-details">
+                        <li><i class="fas fa-envelope"></i> contact@levelup.com</li>
+                        <li><i class="fas fa-phone"></i> +33 1 23 45 67 89</li>
+                        <li><i class="fas fa-map-marker-alt"></i> 123 Avenue de l'Education, Paris</li>
+                    </ul>
+                    <div class="social-icons">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                
+                <!-- Contact Form Card -->
+                <div class="contact-card form-card">
+                    <h3><i class="fas fa-paper-plane"></i> Envoyez-nous un message</h3>
+                    <form id="contact-form">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <div class="input-icon">
+                                    <i class="fas fa-user"></i>
+                                    <input type="text" id="name" name="name" placeholder="Votre nom" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="input-icon">
+                                    <i class="fas fa-envelope"></i>
+                                    <input type="email" id="email" name="email" placeholder="Votre email" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-icon textarea-icon">
+                                <i class="fas fa-comment-alt"></i>
+                                <textarea id="message" name="message" rows="3" placeholder="Votre message" required></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Envoyer
+                        </button>
+                    </form>
+                    <div id="contact-response" class="form-message"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <%- include('./partials/footer') %>
+</body>
+</html>

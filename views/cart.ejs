@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <%- include('./partials/head') %>
+    <title>Panier - LevelUp</title>
+</head>
+<body>
+    <%- include('./partials/header') %>
+    
+    <section class="cart-section">
+        <div class="container">
+            <h1>Votre panier</h1>
+            
+            <% if (cart && cart.items && cart.items.length > 0) { %>
+                <div class="cart-container">
+                    <div class="cart-items">
+                        <% cart.items.forEach(item => { %>
+                            <div class="cart-item">
+                                <div class="item-image">
+                                    <img src="<%= item.course.image_path %>" alt="<%= item.course.title %>">
+                                </div>
+                                <div class="item-details">
+                                    <h3><%= item.course.title %></h3>
+                                    <p class="item-price"><%= item.course.price.toFixed(2) %>€</p>
+                                </div>
+                                <div class="item-actions">
+                                    <form action="/cart/remove/<%= item.course.id %>" method="POST">
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                        <button type="submit" class="btn btn-outline">Supprimer</button>
+                                    </form>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                    
+                    <div class="cart-summary">
+                        <h3>Résumé</h3>
+                        <div class="summary-item">
+                            <span>Total</span>
+                            <span><%= cart.total.toFixed(2) %>€</span>
+                        </div>
+                        <a href="/payment/checkout" class="btn btn-primary btn-block">Procéder au paiement</a>
+                        <form action="/cart/clear" method="POST">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <button type="submit" class="btn btn-outline btn-block">Vider le panier</button>
+                        </form>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="empty-cart">
+                    <img src="/images/empty-cart.svg" alt="Panier vide">
+                    <h2>Votre panier est vide</h2>
+                    <p>Découvrez nos formations et commencez votre apprentissage dès aujourd'hui !</p>
+                    <a href="/#formations" class="btn btn-primary">Voir les formations</a>
+                </div>
+            <% } %>
+        </div>
+    </section>
+    
+    <%- include('./partials/footer') %>
+    <script src="/js/cart.js"></script>
+</body>
+</html>
