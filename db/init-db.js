@@ -29,8 +29,18 @@ if (process.env.DATABASE_URL) {
   };
 }
 
-// Create a new pool
+// Create PostgreSQL connection pool
 const pool = new Pool(poolConfig);
+
+// Test connection
+pool.connect()
+  .then(() => console.log('Connected to PostgreSQL database'))
+  .catch(err => {
+    console.error('Error connecting to PostgreSQL database:', err.message);
+    // Don't throw an error here to prevent app from crashing
+  });
+
+module.exports = pool;
 
 // Tables creation function
 async function createTables() {
