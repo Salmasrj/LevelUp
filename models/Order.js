@@ -1,4 +1,4 @@
-const pool = require('../db/db');
+const { pool } = require('../db/db');
 
 class Order {
   /**
@@ -172,7 +172,7 @@ class Order {
         name: order.name,
         email: order.email
       };
-      
+      order.total_amount = parseFloat(order.total_amount);
       // Clean up duplicated fields
       delete order.name;
       delete order.email;
@@ -194,26 +194,10 @@ class Order {
       return parseInt(result.rows[0].count);
     } catch (error) {
       console.error('Error counting orders:', error);
-      throw error;
+      return 0; // Return a default value instead of throwing
     }
   }
   
-  /**
-   * Get total revenue from all completed orders
-   * @returns {Promise} - Resolves with the total amount
-   */
-  static async getTotalRevenue() {
-    try {
-      const result = await pool.query(
-        "SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'"
-      );
-      
-      return result.rows[0] ? parseFloat(result.rows[0].revenue) || 0 : 0;
-    } catch (error) {
-      console.error('Error getting total revenue:', error);
-      throw error;
-    }
-  }
   
   /**
    * Get all orders with basic user information
@@ -249,7 +233,7 @@ class Order {
       const result = await pool.query(
         "SELECT SUM(total_amount) as total FROM orders WHERE status = 'completed'"
       );
-      return parseFloat(result.rows[0].total || 0);
+      return parseFloat(result.rows[0]?.total || 0);
     } catch (error) {
       console.error('Error getting total revenue:', error);
       return 0;

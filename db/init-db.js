@@ -201,22 +201,6 @@ async function seedData() {
     client.release();
   }
 }
-
-// Run initialization
-async function initialize() {
-  try {
-    await createTables();
-    await seedData();
-    console.log('You can now start the application with: npm start');
-  } catch (e) {
-    console.error('Initialization failed:', e);
-  } finally {
-    pool.end();
-  }
-}
-
-initialize();
-
 async function testSessionTable() {
   try {
     const client = await pool.connect();
@@ -228,5 +212,17 @@ async function testSessionTable() {
   }
 }
 
-// Call after initialization
-testSessionTable();
+// Run initialization
+async function initialize() {
+  try {
+    await createTables();
+    await seedData();
+    await testSessionTable(); // ✅ Call before closing pool
+    console.log('You can now start the application with: npm start');
+  } catch (e) {
+    console.error('Initialization failed:', e);
+  } finally {
+    await pool.end(); // Pool now closed after all operations
+  }
+}
+initialize();

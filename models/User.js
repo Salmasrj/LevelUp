@@ -1,4 +1,5 @@
-const pool = require('../db/db');
+// First fix the pool import
+const { pool } = require('../db/db');
 const bcrypt = require('bcryptjs');
 
 class User {
@@ -17,7 +18,7 @@ class User {
       return result.rows[0] || null;
     } catch (err) {
       console.error('Error finding user by ID:', err);
-      throw err;
+      return null; // Return null instead of throwing
     }
   }
 
@@ -36,7 +37,7 @@ class User {
       return result.rows[0] || null;
     } catch (err) {
       console.error('Error finding user by email:', err);
-      throw err;
+      return null; // Return null instead of throwing
     }
   }
 
@@ -48,10 +49,10 @@ class User {
   static async create(userData) {
     const { name, email, password } = userData;
     
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
     try {
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
       const result = await pool.query(
         "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, created_at",
         [name, email, hashedPassword]
@@ -60,6 +61,8 @@ class User {
       return result.rows[0];
     } catch (err) {
       console.error('Error creating user:', err);
+      // For creation, we might still want to throw as this is a critical operation
+      // But we could return null if preferred
       throw err;
     }
   }
@@ -71,28 +74,29 @@ class User {
    * @returns {Promise} - Resolves with updated user
    */
   static async update(id, updates) {
-    const allowedFields = ['name', 'email'];
-    const fields = Object.keys(updates).filter(key => allowedFields.includes(key));
-    
-    if (fields.length === 0) {
-      return this.findById(id);
-    }
-    
-    // Build dynamic query
-    const setClause = fields.map((field, i) => `${field} = $${i + 1}`).join(', ');
-    const values = fields.map(field => updates[field]);
-    values.push(id); // Add ID for WHERE clause
-    
     try {
+      const allowedFields = ['name', 'email'];
+      const fields = Object.keys(updates).filter(key => allowedFields.includes(key));
+      
+      if (fields.length === 0) {
+        return this.findById(id);
+      }
+      
+      // Build dynamic query
+      const setClause = fields.map((field, i) => `${field} = $${i + 1}`).join(', ');
+      const values = fields.map(field => updates[field]);
+      values.push(id); // Add ID for WHERE clause
+      
       const result = await pool.query(
         `UPDATE users SET ${setClause} WHERE id = $${fields.length + 1} RETURNING id, name, email, created_at`,
         values
       );
       
-      return result.rows[0];
+      return result.rows[0] || null;
     } catch (err) {
       console.error('Error updating user:', err);
-      throw err;
+      // Return null or try to get original user
+      return await this.findById(id).catch(() => null);
     }
   }
 
@@ -103,9 +107,9 @@ class User {
    * @returns {Promise} - Resolves with boolean success
    */
   static async updatePassword(id, newPassword) {
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
     try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      
       const result = await pool.query(
         "UPDATE users SET password = $1 WHERE id = $2",
         [hashedPassword, id]
@@ -114,7 +118,7 @@ class User {
       return result.rowCount > 0;
     } catch (err) {
       console.error('Error updating password:', err);
-      throw err;
+      return false; // Return false instead of throwing
     }
   }
 
@@ -139,7 +143,7 @@ class User {
       return userWithoutPassword;
     } catch (error) {
       console.error('Error authenticating user:', error);
-      throw error;
+      return null; // Return null instead of throwing
     }
   }
 
@@ -158,7 +162,7 @@ class User {
       return result.rowCount > 0;
     } catch (err) {
       console.error('Error deleting user:', err);
-      throw err;
+      return false; // Return false instead of throwing
     }
   }
 
@@ -175,7 +179,7 @@ class User {
       return result.rows;
     } catch (err) {
       console.error('Error getting all users:', err);
-      throw err;
+      return []; // Return empty array instead of throwing
     }
   }
   
@@ -189,7 +193,7 @@ class User {
       return parseInt(result.rows[0].count);
     } catch (err) {
       console.error('Error counting users:', err);
-      throw err;
+      return 0; // Return 0 instead of throwing
     }
   }
 }

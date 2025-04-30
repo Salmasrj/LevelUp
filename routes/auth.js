@@ -3,25 +3,23 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Authentication routes
-router.get('/login', (req, res) => {
+// Authentication routes - add isNotAuthenticated to prevent already logged-in users
+router.get('/login', authMiddleware.isNotAuthenticated, (req, res) => {
   res.render('account/login');
 });
 
-router.post('/login', userController.login);
+router.post('/login', authMiddleware.isNotAuthenticated, userController.login);
 
-router.get('/register', (req, res) => {
+router.get('/register', authMiddleware.isNotAuthenticated, (req, res) => {
   res.render('account/register');
 });
 
-router.post('/register', userController.register);
+router.post('/register', authMiddleware.isNotAuthenticated, userController.register);
 
 router.get('/logout', userController.logout);
 
 // Protected routes
 router.get('/dashboard', authMiddleware.isAuthenticated, userController.getDashboard);
-
-// Add this after the dashboard route:
 router.get('/settings', authMiddleware.isAuthenticated, userController.getSettings);
 router.post('/settings/update', authMiddleware.isAuthenticated, userController.updateProfile);
 router.post('/settings/password', authMiddleware.isAuthenticated, userController.changePassword);

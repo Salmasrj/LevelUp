@@ -18,6 +18,10 @@ exports.getCart = (req, res) => {
   });
 };
 
+exports.formatPrice = (price) => {
+  return parseFloat(price || 0);
+};
+
 // Add to cart function
 exports.addToCart = async (req, res) => {
   try {

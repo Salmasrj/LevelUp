@@ -16,7 +16,7 @@ exports.getDashboard = async (req, res) => {
       userCount,
       courseCount,
       orderCount,
-      revenue: revenue.toFixed(2),
+      revenue: (revenue !== null && revenue !== undefined) ? revenue.toFixed(2) : '0.00',
       cartCount: req.session.cart ? req.session.cart.items.length : 0
     });
   } catch (error) {

@@ -58,7 +58,11 @@ class Course {
         [title, description, price, duration, image_path]
       );
       
-      return result.rows[0];
+      const course = result.rows[0];
+      return {
+        ...course,
+        price: parseFloat(course.price)
+      };
     } catch (err) {
       console.error('Error creating course:', err);
       throw err;
@@ -104,7 +108,11 @@ class Course {
         values
       );
       
-      return result.rows[0];
+      const course = result.rows[0];
+      return {
+        ...course,
+        price: parseFloat(course.price)
+      };
     } catch (err) {
       console.error('Error updating course:', err);
       throw err;
@@ -148,7 +156,10 @@ class Course {
         GROUP BY c.id, oi.price, up.progress
       `, [userId]);
       
-      return result.rows;
+      return result.rows.map(course => ({
+        ...course,
+        price: parseFloat(course.price)
+      }));
     } catch (err) {
       console.error('Error getting purchased courses:', err);
       throw err;
