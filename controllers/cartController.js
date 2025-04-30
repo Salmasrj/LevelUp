@@ -63,8 +63,8 @@ exports.addToCart = async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
     
-    // Deep clone the cart to avoid reference issues
-    let cart = req.session.cart || { items: [], total: 0 };
+    // Use initializeCart consistently
+    const cart = initializeCart(req);
     
     // Check if course already in cart
     const existingItemIndex = cart.items.findIndex(item => item.course.id === courseId);
@@ -102,25 +102,22 @@ exports.addToCart = async (req, res) => {
     // Update total
     cart.total = cart.items.reduce((sum, item) => sum + parseFloat(item.course.price || 0), 0);
     
-    // IMPORTANT: Update the actual session cart with our modified cart
-    req.session.cart = cart;
-    
-    // Force session save and wait for completion before responding
-    req.session.save((err) => {
-      if (err) {
-        console.error('Failed to save session:', err);
-        return res.status(500).json({
-          success: false,
-          message: 'Erreur lors de la sauvegarde de la session'
-        });
-      }
-      
-      console.log('Cart after save:', req.session.cart);
-      return res.json({
-        success: true,
-        cartCount: cart.items.length,
-        message: `"${course.title}" a été ajouté à votre panier`
+    // Force session save and use Promise to ensure completion
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) {
+          console.error('Failed to save session:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
       });
+    });
+    
+    return res.json({
+      success: true,
+      cartCount: cart.items.length,
+      message: `"${course.title}" a été ajouté à votre panier`
     });
   } catch (error) {
     console.error('Error adding to cart:', error);

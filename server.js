@@ -188,6 +188,16 @@ async function startServer() {
       });
     });
   }
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/debug-session-cookie', (req, res) => {
+      res.json({
+        sessionID: req.sessionID,
+        cookies: req.cookies,
+        hasCookies: Object.keys(req.cookies).length > 0,
+        sessionCookie: req.cookies['connect.sid'] || null
+      });
+    });
+  }
 
   // Apply auth middleware to make user data available in all views
   app.use(authMiddleware.addUserData);
