@@ -10,15 +10,48 @@ function initializeCart(req) {
   return req.session.cart;
 }
 
-// Add the getCart function referenced in routes/cart.js
+// Modified getCart function
 exports.getCart = (req, res) => {
-  console.log('Session in getCart:', req.session);
+  console.log('Session ID:', req.sessionID);
   console.log('Cart in session:', req.session.cart);
   
-  res.render('cart', {
-    cart: req.session.cart || { items: [], total: 0 },
-    user: req.session.user
-  });
+  // Create a new cart if it doesn't exist
+  if (!req.session.cart) {
+    req.session.cart = {
+      items: [],
+      total: 0
+    };
+    
+    // Save the new empty cart
+    req.session.save(err => {
+      if (err) console.error('Error saving new empty cart:', err);
+      renderCart();
+    });
+  } else {
+    renderCart();
+  }
+  
+  // Separate function to render the cart
+  function renderCart() {
+    // Ensure proper formatting of prices
+    if (req.session.cart && req.session.cart.items && req.session.cart.items.length > 0) {
+      req.session.cart.items.forEach(item => {
+        if (item.course && item.course.price) {
+          item.course.price = parseFloat(item.course.price);
+        }
+      });
+      
+      // Recalculate total
+      req.session.cart.total = req.session.cart.items.reduce((sum, item) => {
+        return sum + parseFloat(item.course.price || 0);
+      }, 0);
+    }
+    
+    res.render('cart', {
+      cart: req.session.cart || { items: [], total: 0 },
+      user: req.session.user
+    });
+  }
 };
 
 exports.formatPrice = (price) => {
@@ -29,7 +62,9 @@ exports.formatPrice = (price) => {
 exports.addToCart = async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
-    const cart = initializeCart(req);
+    
+    // Deep clone the cart to avoid reference issues
+    let cart = req.session.cart || { items: [], total: 0 };
     
     // Check if course already in cart
     const existingItemIndex = cart.items.findIndex(item => item.course.id === courseId);
@@ -52,16 +87,26 @@ exports.addToCart = async (req, res) => {
       });
     }
     
-    // Add to cart
+    // Add to cart with all necessary properties
     cart.items.push({
-      course: course
+      course: {
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        price: parseFloat(course.price),
+        image_path: course.image_path,
+        duration: course.duration
+      }
     });
     
     // Update total
-    cart.total = cart.items.reduce((sum, item) => sum + parseFloat(item.course.price), 0);
+    cart.total = cart.items.reduce((sum, item) => sum + parseFloat(item.course.price || 0), 0);
     
-    // IMPORTANT: Add explicit session save
-    req.session.save(err => {
+    // IMPORTANT: Update the actual session cart with our modified cart
+    req.session.cart = cart;
+    
+    // Force session save and wait for completion before responding
+    req.session.save((err) => {
       if (err) {
         console.error('Failed to save session:', err);
         return res.status(500).json({
@@ -70,6 +115,7 @@ exports.addToCart = async (req, res) => {
         });
       }
       
+      console.log('Cart after save:', req.session.cart);
       return res.json({
         success: true,
         cartCount: cart.items.length,

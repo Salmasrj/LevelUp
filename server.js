@@ -93,6 +93,17 @@ async function startServer() {
       });
     });
   }
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/debug-cart', (req, res) => {
+      res.json({
+        sessionID: req.sessionID,
+        cartExists: !!req.session.cart,
+        cartItemsCount: req.session.cart ? req.session.cart.items.length : 0,
+        cartItems: req.session.cart ? req.session.cart.items : [],
+        cartTotal: req.session.cart ? req.session.cart.total : 0
+      });
+    });
+  }
 
   // Apply auth middleware to make user data available in all views
   app.use(authMiddleware.addUserData);
@@ -207,6 +218,42 @@ async function verifySessionTable() {
     console.warn('⚠️ Session storage may not be working correctly!');
   }
 }
+
+async function testSessionWrite() {
+  try {
+    const client = await require('./db/db').pool.connect();
+    
+    // Test insert a dummy session
+    const testSessionId = `test-session-${Date.now()}`;
+    const testSessionData = JSON.stringify({ 
+      test: true, 
+      timestamp: new Date().toISOString() 
+    });
+    
+    await client.query(
+      'INSERT INTO session(sid, sess, expire) VALUES($1, $2, $3) ON CONFLICT (sid) DO UPDATE SET sess = $2, expire = $3', 
+      [testSessionId, testSessionData, new Date(Date.now() + 60000)]
+    );
+    
+    // Try to retrieve it
+    const result = await client.query('SELECT * FROM session WHERE sid = $1', [testSessionId]);
+    
+    if (result.rows.length > 0) {
+      console.log('✅ Session write/read test successful');
+    } else {
+      console.error('❌ Session write/read test failed - could not retrieve test session');
+    }
+    
+    // Clean up
+    await client.query('DELETE FROM session WHERE sid = $1', [testSessionId]);
+    client.release();
+  } catch (err) {
+    console.error('❌ Session write/read test failed:', err);
+  }
+}
+
+// Call this in your startServer function
+await testSessionWrite();
 
 // Execute the startServer function
 startServer().catch(err => {
