@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const Course = require('../models/Course');
 const emailService = require('../config/email');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 // User registration
 exports.register = async (req, res) => {

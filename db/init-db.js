@@ -3,7 +3,7 @@
  * Creates tables and adds seed data for LevelUp e-learning platform
  */
 const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 
 // Load environment variables
