@@ -11,7 +11,11 @@ let poolConfig;
 if (process.env.DATABASE_URL) {
   poolConfig = {
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Required for Render PostgreSQL
+    ssl: { rejectUnauthorized: false }, // Required for Render PostgreSQL
+    // Add these connection parameters
+    max: 20, // Increase connection pool size
+    idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
+    connectionTimeoutMillis: 5000 // How long to wait for a connection
   };
 } else {
   // Local development configuration
@@ -24,7 +28,7 @@ if (process.env.DATABASE_URL) {
   };
 }
 
-async function connectWithRetry(maxRetries = 5, delay = 1000) {
+async function connectWithRetry(maxRetries = 10, delay = 2000) {
   let retries = 0;
   
   while (retries < maxRetries) {

@@ -40,6 +40,7 @@ async function startServer() {
   const paymentRoutes = require('./routes/payment');
   const adminRoutes = require('./routes/admin');
   const authMiddleware = require('./middlewares/authMiddleware');
+  const pgSession = require('connect-pg-simple')(session);
 
   // View engine setup
   app.set('view engine', 'ejs');
@@ -53,10 +54,18 @@ async function startServer() {
 
   // Session configuration
   app.use(session({
+    store: new pgSession({
+      pool: require('./db/db'), // Reuse existing PostgreSQL pool
+      tableName: 'session', // Table to store sessions
+      createTableIfMissing: true // Create table if it doesn't exist
+    }),
     secret: process.env.SESSION_SECRET || 'levelup_secret',
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+    saveUninitialized: false, // Changed from true to false to save resources
+    cookie: { 
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    }
   }));
 
   // Apply auth middleware to make user data available in all views
@@ -110,12 +119,17 @@ async function startServer() {
 
   // THIS IS THE CRITICAL PART - Start listening on the port
   return new Promise((resolve) => {
-    // In the startServer function, modify the app.listen call:
-    // Add more detailed logging
-    console.log(`Attempting to start server on port ${PORT}`);
+    console.log(`PORT environment variable: ${process.env.PORT}`);
+  
     const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
       resolve(server);
+    });
+    
+    // Add error handler for listen
+    server.on('error', (error) => {
+      console.error('Failed to start server:', error);
+      process.exit(1);
     });
   });
 }
