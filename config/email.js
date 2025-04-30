@@ -1,47 +1,58 @@
 const nodemailer = require('nodemailer');
 const ejs = require('ejs');
 const path = require('path');
-const fs = require('fs');
 
-// Create reusable transporter
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+// Create a configurable transporter based on environment
+function createTransporter() {
+  if (process.env.DISABLE_EMAILS === 'true') {
+    console.log('📧 Email sending is DISABLED. Emails will be logged instead.');
+    
+    // Return a mock transporter that just logs
+    return {
+      sendMail: (mailOptions, callback) => {
+        console.log('📧 [MOCK EMAIL]');
+        console.log(`📧 To: ${mailOptions.to}`);
+        console.log(`📧 Subject: ${mailOptions.subject}`);
+        console.log('📧 Email content would be sent (not showing for brevity)');
+        
+        if (callback) callback(null, { response: 'Email disabled, logging only' });
+        return Promise.resolve({ response: 'Email disabled, logging only' });
+      }
+    };
   }
-});
-
-// Function to send email
-async function sendEmail(to, subject, template, data) {
-    try {
-      const templatePath = path.join(__dirname, '../views/emails', `${template}.ejs`);
-      const templateContent = fs.readFileSync(templatePath, 'utf8');
-      
-      // Add BASE_URL to the data object
-      const templateData = {
-        ...data,
-        process: {
-          env: {
-            BASE_URL: process.env.BASE_URL || 'http://localhost:3000'
-          }
-        }
-      };
-      
-      const html = ejs.render(templateContent, templateData);
-      
-      const mailOptions = {
-        from: `"LevelUp" <${process.env.EMAIL_USER}>`,
-        to,
-        subject,
-        html
-      };
-      
-      return await transporter.sendMail(mailOptions);
-    } catch (error) {
-      console.error('Email sending failed:', error);
-      throw error;
+  
+  // If emails are enabled, use the real transporter
+  return nodemailer.createTransport({
+    service: process.env.EMAIL_SERVICE,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
     }
+  });
+}
+
+const transporter = createTransporter();
+
+// Send an email with a rendered template
+async function sendEmail(to, subject, template, data) {
+  try {
+    // Render the template
+    const templatePath = path.join(__dirname, '..', 'views', 'emails', `${template}.ejs`);
+    const html = await ejs.renderFile(templatePath, data);
+    
+    // Send the email
+    const info = await transporter.sendMail({
+      from: `"LevelUp" <${process.env.EMAIL_USER || 'noreply@levelup.com'}>`,
+      to,
+      subject,
+      html
+    });
+    
+    return info;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
 }
 
 module.exports = { sendEmail };

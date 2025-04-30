@@ -112,6 +112,17 @@ async function createTables() {
         UNIQUE(user_id, course_id)
       )
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default" PRIMARY KEY,
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL
+      )
+    `);
+    
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
+    `);
 
     await client.query('COMMIT');
     console.log('Tables created successfully');

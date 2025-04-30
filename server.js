@@ -119,14 +119,15 @@ async function startServer() {
 
   // THIS IS THE CRITICAL PART - Start listening on the port
   return new Promise((resolve) => {
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`PORT environment variable: ${process.env.PORT}`);
+    console.log(`DATABASE_URL defined: ${Boolean(process.env.DATABASE_URL)}`);
   
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
       resolve(server);
     });
     
-    // Add error handler for listen
     server.on('error', (error) => {
       console.error('Failed to start server:', error);
       process.exit(1);
