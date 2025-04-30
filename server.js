@@ -57,14 +57,11 @@ async function startServer() {
     store: new pgSession({
       pool: require('./db/db').pool,
       tableName: 'session',
-      createTableIfMissing: true,
-      pruneSessionInterval: 60 * 15,
-      errorLog: console.error.bind(console, 'pgSession error:')
+      createTableIfMissing: true
     }),
     secret: process.env.SESSION_SECRET || 'levelup_secret',
-    resave: true, // Changed from false to true to ensure session is always saved
-    saveUninitialized: false,
-    rolling: true,
+    resave: true,  // Change this from false to true
+    saveUninitialized: true,  // Change this from false to true
     cookie: { 
       secure: process.env.NODE_ENV === 'production',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days

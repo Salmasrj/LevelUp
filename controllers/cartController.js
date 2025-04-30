@@ -12,6 +12,9 @@ function initializeCart(req) {
 
 // Add the getCart function referenced in routes/cart.js
 exports.getCart = (req, res) => {
+  console.log('Session in getCart:', req.session);
+  console.log('Cart in session:', req.session.cart);
+  
   res.render('cart', {
     cart: req.session.cart || { items: [], total: 0 },
     user: req.session.user
