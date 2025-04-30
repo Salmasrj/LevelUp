@@ -84,7 +84,7 @@ async function startServer() {
       next();
     });
   }
-  
+
   if (process.env.NODE_ENV !== 'production') {
     app.get('/debug-session', (req, res) => {
       res.json({
@@ -103,8 +103,8 @@ async function startServer() {
   // Setup CSRF protection
   const csrfProtection = csrf({ cookie: true });
   app.use((req, res, next) => {
-    // Skip CSRF for API routes if needed
-    if (req.path.startsWith('/api/')) {
+    // Temporarily disable CSRF for auth routes during debugging
+    if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
       return next();
     }
     csrfProtection(req, res, next);

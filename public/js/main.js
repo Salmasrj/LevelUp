@@ -248,47 +248,30 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       
       const formAction = this.getAttribute('action');
+      const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
       
-      // Get course title from different possible locations
-      let courseTitle = 'Formation';
-      
-      if (this.closest('.course-card')?.querySelector('h3')) {
-        courseTitle = this.closest('.course-card').querySelector('h3').textContent;
-      } else if (document.querySelector('h1')) {
-        // On detail pages, use the page title
-        courseTitle = document.querySelector('h1').textContent;
-      }
-      
-      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      // Use FormData instead of JSON for compatibility with your server
+      const formData = new FormData();
+      formData.append('_csrf', csrfToken);
       
       fetch(formAction, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'CSRF-Token': csrfToken
-        }
+        body: formData
       })
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          // Update cart badge with the new count
+          // Update cart counter
           updateCartCount(data.cartCount);
-          
-          // Show alert
-          alert(`"${courseTitle}" a été ajouté à votre panier.`);
+          // Show success message
+          showNotification(`"${data.message}"`, 'success');
         } else {
-          // Still update the cart count in case it changed
-          if (data.cartCount !== undefined) {
-            updateCartCount(data.cartCount);
-          }
-          
-          // Show alert for already in cart or error
-          alert(data.message || 'Une erreur est survenue.');
+          showNotification(data.message, 'info');
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Une erreur est survenue lors de l\'ajout au panier.');
+        showNotification('Une erreur est survenue', 'error');
       });
     });
   });

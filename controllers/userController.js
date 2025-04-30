@@ -6,6 +6,11 @@ const bcrypt = require('bcryptjs');
 // User registration
 exports.register = async (req, res) => {
   try {
+    const dbStatus = await require('../db/db').checkDatabaseConnection();
+    if (!dbStatus) {
+      return res.render('account/register', { error: 'Service temporarily unavailable. Please try again later.' });
+    }
+    
     const { name, email, password, confirm_password } = req.body;
 
     // Validation
@@ -21,9 +26,11 @@ exports.register = async (req, res) => {
 
     // Create user
     const user = await User.create({ name, email, password });
+    console.log('User created:', user);
 
     // Store user in session
     req.session.user = user;
+    console.log('Session before save:', req.session);
 
     // Send welcome email
     try {
@@ -35,19 +42,26 @@ exports.register = async (req, res) => {
       );
     } catch (emailErr) {
       console.error('Error sending welcome email:', emailErr);
+      // Continue even if email fails
     }
 
-    // Redirect to dashboard
+    // Save session and redirect - ONLY ONCE
     req.session.save(err => {
       if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).render('error', { message: 'Erreur lors de l\'inscription' });
+        console.error('Session save error details:', err);
+        return res.status(500).render('error', { 
+          message: 'Error saving session. Please try again later.' 
+        });
       }
+      
+      console.log('Session saved successfully');
       res.redirect('/auth/dashboard');
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).render('error', { message: 'Erreur lors de l\'inscription' });
+    res.status(500).render('account/register', { 
+      error: 'Une erreur est survenue lors de l\'inscription. Veuillez réessayer.' 
+    });
   }
 };
 
