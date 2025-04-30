@@ -113,11 +113,15 @@ exports.deleteUser = async (req, res) => {
 exports.getAllCourses = async (req, res) => {
   try {
     const courses = await Course.getAll();
-    
-    res.render('admin/courses', {
-      user: req.session.user,
-      courses,
-      cartCount: req.session.cart ? req.session.cart.items.length : 0
+    courses.forEach(course => {
+      course.price = parseFloat(course.price);
+    });
+
+    res.render('index', { 
+        courses,
+        user: req.session.user || null,
+        cartCount: req.session.cart ? req.session.cart.items.length : 0,
+        notification
     });
   } catch (error) {
     console.error("Error fetching courses:", error);
