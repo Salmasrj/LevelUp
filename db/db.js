@@ -24,6 +24,30 @@ if (process.env.DATABASE_URL) {
   };
 }
 
+async function connectWithRetry(maxRetries = 5, delay = 1000) {
+  let retries = 0;
+  
+  while (retries < maxRetries) {
+    try {
+      await pool.connect();
+      console.log('Connected to PostgreSQL database');
+      return;
+    } catch (err) {
+      retries++;
+      console.error(`Connection attempt ${retries} failed: ${err.message}`);
+      
+      if (retries >= maxRetries) {
+        throw err;
+      }
+      
+      // Wait with exponential backoff
+      const waitTime = delay * Math.pow(2, retries - 1);
+      console.log(`Waiting ${waitTime}ms before retrying...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+  }
+}
+
 // Create PostgreSQL connection pool
 const pool = new Pool(poolConfig);
 
