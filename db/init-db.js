@@ -216,3 +216,17 @@ async function initialize() {
 }
 
 initialize();
+
+async function testSessionTable() {
+  try {
+    const client = await pool.connect();
+    const result = await client.query("SELECT COUNT(*) FROM session");
+    console.log(`Found ${result.rows[0].count} sessions in database`);
+    client.release();
+  } catch (err) {
+    console.error("Session table test failed:", err);
+  }
+}
+
+// Call after initialization
+testSessionTable();

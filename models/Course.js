@@ -8,7 +8,10 @@ class Course {
   static async getAll() {
     try {
       const result = await pool.query("SELECT * FROM courses");
-      return result.rows;
+      return result.rows.map(course => ({
+        ...course,
+        price: parseFloat(course.price)  // Convert price to number here
+      }));
     } catch (err) {
       console.error('Error getting all courses:', err);
       throw err;
@@ -27,7 +30,14 @@ class Course {
         [id]
       );
       
-      return result.rows[0] || null;
+      if (result.rows.length > 0) {
+        const course = result.rows[0];
+        return {
+          ...course,
+          price: parseFloat(course.price)
+        };
+      }
+      return null;
     } catch (err) {
       console.error('Error finding course by ID:', err);
       throw err;

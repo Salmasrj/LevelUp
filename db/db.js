@@ -28,14 +28,28 @@ if (process.env.DATABASE_URL) {
   };
 }
 
+// IMPORTANT: Create the pool FIRST before any functions try to use it
+const pool = new Pool(poolConfig);
+
+// Add event handlers immediately after pool creation
+pool.on('connect', client => {
+  console.log('New database client connected');
+});
+
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+});
+
+// Then define the retry function
 async function connectWithRetry(maxRetries = 10, delay = 2000) {
   let retries = 0;
   
   while (retries < maxRetries) {
     try {
-      await pool.connect();
+      const client = await pool.connect();
       console.log('Connected to PostgreSQL database');
-      return;
+      client.release(); // Important: release the client when done!
+      return true;
     } catch (err) {
       retries++;
       console.error(`Connection attempt ${retries} failed: ${err.message}`);
@@ -52,16 +66,27 @@ async function connectWithRetry(maxRetries = 10, delay = 2000) {
   }
 }
 
-// Create PostgreSQL connection pool
-const pool = new Pool(poolConfig);
+// Add function to test connection health
+async function checkDatabaseConnection() {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT NOW() as now');
+    console.log('Database connection check successful:', result.rows[0].now);
+    client.release();
+    return true;
+  } catch (err) {
+    console.error('Database connection check failed:', err);
+    return false;
+  }
+}
 
-// Test connection
-pool.connect()
-  .then(() => console.log('Connected to PostgreSQL database'))
-  .catch(err => {
-    console.error('Error connecting to PostgreSQL database:', err.message);
-    // Don't throw here, just log the error - this allows the app to start
-    // even if there's a temporary database connection issue
-  });
+// Export the pool BEFORE calling connectWithRetry
+module.exports = {
+  pool,
+  checkDatabaseConnection
+};
 
-module.exports = pool;
+// Call connectWithRetry AFTER the pool is created and exported
+connectWithRetry().catch(err => {
+  console.error('Failed to connect to database after multiple attempts:', err);
+});

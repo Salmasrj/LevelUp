@@ -38,8 +38,13 @@ exports.register = async (req, res) => {
     }
 
     // Redirect to dashboard
-    res.redirect('/auth/dashboard');
-
+    req.session.save(err => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).render('error', { message: 'Erreur lors de l\'inscription' });
+      }
+      res.redirect('/auth/dashboard');
+    });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).render('error', { message: 'Erreur lors de l\'inscription' });
@@ -73,7 +78,15 @@ exports.login = async (req, res) => {
     // Store user in session
     req.session.user = user;
     
-    res.redirect('/auth/dashboard');
+    // IMPORTANT: Add explicit session save
+    req.session.save(err => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).render('error', { message: 'Erreur lors de la connexion' });
+      }
+      res.redirect(req.session.returnTo || '/auth/dashboard');
+      delete req.session.returnTo;
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).render('error', { message: 'Erreur lors de la connexion' });
@@ -108,8 +121,12 @@ exports.getDashboard = async (req, res) => {
 };
 
 // User profile update
+// User profile update
 exports.updateProfile = async (req, res) => {
+  const client = await require('../db/db').pool.connect();
+  
   try {
+    await client.query('BEGIN');
     const userId = req.session.user.id;
     const { name, email } = req.body;
     
@@ -118,17 +135,33 @@ exports.updateProfile = async (req, res) => {
     // Update session data
     req.session.user = updatedUser;
     
-    res.json({
-      success: true,
-      user: updatedUser,
-      message: 'Profil mis à jour avec succès'
+    await client.query('COMMIT');
+    
+    // Save session changes explicitly
+    req.session.save(err => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Erreur lors de la sauvegarde de la session'
+        });
+      }
+      
+      res.json({
+        success: true,
+        user: updatedUser,
+        message: 'Profil mis à jour avec succès'
+      });
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error("Profile update error:", error);
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la mise à jour du profil'
     });
+  } finally {
+    client.release();
   }
 };
 

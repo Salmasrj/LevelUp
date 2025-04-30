@@ -55,18 +55,47 @@ async function startServer() {
   // Session configuration
   app.use(session({
     store: new pgSession({
-      pool: require('./db/db'), // Reuse existing PostgreSQL pool
-      tableName: 'session', // Table to store sessions
-      createTableIfMissing: true // Create table if it doesn't exist
+      pool: require('./db/db').pool,
+      tableName: 'session',
+      createTableIfMissing: true,
+      pruneSessionInterval: 60 * 15,
+      errorLog: console.error.bind(console, 'pgSession error:')
     }),
     secret: process.env.SESSION_SECRET || 'levelup_secret',
-    resave: false,
-    saveUninitialized: false, // Changed from true to false to save resources
+    resave: true, // Changed from false to true to ensure session is always saved
+    saveUninitialized: false,
+    rolling: true,
     cookie: { 
       secure: process.env.NODE_ENV === 'production',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
   }));
+
+  if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+      // Log creation of new sessions
+      if (!req.session.initialized) {
+        console.log(`New session created: ${req.sessionID}`);
+        req.session.initialized = true;
+        req.session.save(err => {
+          if (err) console.error('Error saving new session:', err);
+        });
+      }
+      next();
+    });
+  }
+  
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/debug-session', (req, res) => {
+      res.json({
+        sessionID: req.sessionID,
+        session: req.session,
+        hasUser: !!req.session.user,
+        hasCart: !!req.session.cart,
+        cartItems: req.session.cart ? req.session.cart.items.length : 0
+      });
+    });
+  }
 
   // Apply auth middleware to make user data available in all views
   app.use(authMiddleware.addUserData);
@@ -125,6 +154,10 @@ async function startServer() {
   
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
+      
+      // Add session table verification
+      verifySessionTable();
+      
       resolve(server);
     });
     
@@ -133,6 +166,49 @@ async function startServer() {
       process.exit(1);
     });
   });
+}
+
+
+async function verifySessionTable() {
+  try {
+    const client = await require('./db/db').pool.connect();
+    
+    // Check if session table exists
+    const tableCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'session'
+      );
+    `);
+    
+    const tableExists = tableCheck.rows[0].exists;
+    console.log(`Session table exists: ${tableExists}`);
+    
+    if (tableExists) {
+      // Check if we can access the table
+      const sessionCount = await client.query('SELECT COUNT(*) FROM session');
+      console.log(`Current session count: ${sessionCount.rows[0].count}`);
+      
+      // Check session table structure
+      const columnsCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'session'
+        ORDER BY column_name;
+      `);
+      
+      console.log('Session table columns:', columnsCheck.rows.map(r => r.column_name).join(', '));
+    } else {
+      console.warn('⚠️ Session table does not exist! Sessions will not persist.');
+    }
+    
+    client.release();
+  } catch (err) {
+    console.error('Failed to verify session table:', err);
+    console.warn('⚠️ Session storage may not be working correctly!');
+  }
 }
 
 // Execute the startServer function
