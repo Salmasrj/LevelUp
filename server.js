@@ -11,9 +11,11 @@ const csrf = require('csurf');
 dotenv.config();
 
 // Database validation check
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'db', 'database.sqlite');
-if (!fs.existsSync(dbPath)) {
-  console.warn('Database file not found. Running initialization script...');
+const db = require('./db/db');
+
+// Optional: Initialize database if needed
+if (process.env.INITIALIZE_DB) {
+  console.log('Initializing database...');
   exec('npm run init-db', (error) => {
     if (error) {
       console.error('Error initializing database:', error);
@@ -21,8 +23,6 @@ if (!fs.existsSync(dbPath)) {
     }
     console.log('Database initialized successfully.');
   });
-} else {
-  console.log('Database found at:', dbPath);
 }
 
 // Import routes
