@@ -248,30 +248,57 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       
       const formAction = this.getAttribute('action');
-      const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
       
-      // Use FormData instead of JSON for compatibility with your server
-      const formData = new FormData();
-      formData.append('_csrf', csrfToken);
+      // More robust CSRF token retrieval
+      let csrfToken;
+      const metaToken = document.querySelector('meta[name="csrf-token"]');
+      const inputToken = document.querySelector('input[name="_csrf"]');
+      
+      if (metaToken) {
+        csrfToken = metaToken.getAttribute('content');
+      } else if (inputToken) {
+        csrfToken = inputToken.value;
+      } else {
+        console.error('CSRF token not found!');
+        showNotification('Erreur de sécurité. Veuillez rafraîchir la page.', 'error');
+        return;
+      }
+      
+      console.log('Adding to cart:', formAction); // Debug info
       
       fetch(formAction, {
         method: 'POST',
-        body: formData
+        headers: {
+          'CSRF-Token': csrfToken,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `_csrf=${encodeURIComponent(csrfToken)}`
       })
-      .then(response => response.json())
+      .then(response => {
+        console.log('Response status:', response.status); // Debug info
+        if (!response.ok) {
+          return response.text().then(text => {
+            throw new Error(`Status ${response.status}: ${text}`);
+          });
+        }
+        return response.json();
+      })
       .then(data => {
+        console.log('Cart response:', data); // Debug info
+        
         if (data.success) {
-          // Update cart counter
+          // Update cart counter using the updateCartCount function
           updateCartCount(data.cartCount);
-          // Show success message
-          showNotification(`"${data.message}"`, 'success');
+          
+          // Show success notification
+          showNotification(data.message, 'success');
         } else {
-          showNotification(data.message, 'info');
+          showNotification(data.message || 'Une erreur est survenue', 'info');
         }
       })
       .catch(error => {
-        console.error('Error:', error);
-        showNotification('Une erreur est survenue', 'error');
+        console.error('Error adding to cart:', error);
+        showNotification('Une erreur est survenue lors de l\'ajout au panier', 'error');
       });
     });
   });
