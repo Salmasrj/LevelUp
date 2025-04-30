@@ -1,4 +1,4 @@
-const db = require('../db/db');
+const pool = require('../db/db');
 const bcrypt = require('bcrypt');
 
 class User {
@@ -7,13 +7,18 @@ class User {
    * @param {number} id - User ID
    * @returns {Promise} - Resolves with user object or null
    */
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT id, name, email, created_at FROM users WHERE id = ?", [id], (err, user) => {
-        if (err) return reject(err);
-        resolve(user || null);
-      });
-    });
+  static async findById(id) {
+    try {
+      const result = await pool.query(
+        "SELECT id, name, email, created_at FROM users WHERE id = $1",
+        [id]
+      );
+      
+      return result.rows[0] || null;
+    } catch (err) {
+      console.error('Error finding user by ID:', err);
+      throw err;
+    }
   }
 
   /**
@@ -21,13 +26,18 @@ class User {
    * @param {string} email - User email
    * @returns {Promise} - Resolves with user object or null
    */
-  static findByEmail(email) {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM users WHERE email = ?", [email], (err, user) => {
-        if (err) return reject(err);
-        resolve(user || null);
-      });
-    });
+  static async findByEmail(email) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM users WHERE email = $1",
+        [email]
+      );
+      
+      return result.rows[0] || null;
+    } catch (err) {
+      console.error('Error finding user by email:', err);
+      throw err;
+    }
   }
 
   /**
@@ -41,20 +51,17 @@ class User {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    return new Promise((resolve, reject) => {
-      db.run(
-        "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-        [name, email, hashedPassword],
-        function(err) {
-          if (err) return reject(err);
-          
-          // Get and return the created user
-          User.findById(this.lastID)
-            .then(user => resolve(user))
-            .catch(err => reject(err));
-        }
+    try {
+      const result = await pool.query(
+        "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, created_at",
+        [name, email, hashedPassword]
       );
-    });
+      
+      return result.rows[0];
+    } catch (err) {
+      console.error('Error creating user:', err);
+      throw err;
+    }
   }
 
   /**
@@ -68,22 +75,25 @@ class User {
     const fields = Object.keys(updates).filter(key => allowedFields.includes(key));
     
     if (fields.length === 0) {
-      return User.findById(id);
+      return this.findById(id);
     }
     
-    const setClause = fields.map(field => `${field} = ?`).join(', ');
+    // Build dynamic query
+    const setClause = fields.map((field, i) => `${field} = $${i + 1}`).join(', ');
     const values = fields.map(field => updates[field]);
-    values.push(id);
+    values.push(id); // Add ID for WHERE clause
     
-    return new Promise((resolve, reject) => {
-      db.run(`UPDATE users SET ${setClause} WHERE id = ?`, values, function(err) {
-        if (err) return reject(err);
-        
-        User.findById(id)
-          .then(user => resolve(user))
-          .catch(err => reject(err));
-      });
-    });
+    try {
+      const result = await pool.query(
+        `UPDATE users SET ${setClause} WHERE id = $${fields.length + 1} RETURNING id, name, email, created_at`,
+        values
+      );
+      
+      return result.rows[0];
+    } catch (err) {
+      console.error('Error updating user:', err);
+      throw err;
+    }
   }
 
   /**
@@ -95,16 +105,17 @@ class User {
   static async updatePassword(id, newPassword) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
-    return new Promise((resolve, reject) => {
-      db.run(
-        "UPDATE users SET password = ? WHERE id = ?",
-        [hashedPassword, id],
-        function(err) {
-          if (err) return reject(err);
-          resolve(this.changes > 0);
-        }
+    try {
+      const result = await pool.query(
+        "UPDATE users SET password = $1 WHERE id = $2",
+        [hashedPassword, id]
       );
-    });
+      
+      return result.rowCount > 0;
+    } catch (err) {
+      console.error('Error updating password:', err);
+      throw err;
+    }
   }
 
   /**
@@ -115,7 +126,7 @@ class User {
    */
   static async authenticate(email, password) {
     try {
-      const user = await User.findByEmail(email);
+      const user = await this.findByEmail(email);
       
       if (!user) return null;
       
@@ -127,6 +138,7 @@ class User {
       const { password: _, ...userWithoutPassword } = user;
       return userWithoutPassword;
     } catch (error) {
+      console.error('Error authenticating user:', error);
       throw error;
     }
   }
@@ -136,29 +148,50 @@ class User {
    * @param {number} id - User ID
    * @returns {Promise} - Resolves with boolean success
    */
-  static delete(id) {
-    return new Promise((resolve, reject) => {
-      db.run("DELETE FROM users WHERE id = ?", [id], function(err) {
-        if (err) return reject(err);
-        resolve(this.changes > 0);
-      });
-    });
-  }
-  /**
-     * Get all users
-     * @returns {Promise} - Resolves with array of users
-     */
-    static getAll() {
-        return new Promise((resolve, reject) => {
-        db.all(
-            "SELECT id, name, email, is_admin, created_at FROM users ORDER BY id",
-            (err, users) => {
-            if (err) return reject(err);
-            resolve(users || []);
-            }
-        );
-        });
+  static async delete(id) {
+    try {
+      const result = await pool.query(
+        "DELETE FROM users WHERE id = $1",
+        [id]
+      );
+      
+      return result.rowCount > 0;
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      throw err;
     }
+  }
+
+  /**
+   * Get all users
+   * @returns {Promise} - Resolves with array of users
+   */
+  static async getAll() {
+    try {
+      const result = await pool.query(
+        "SELECT id, name, email, is_admin, created_at FROM users ORDER BY id"
+      );
+      
+      return result.rows;
+    } catch (err) {
+      console.error('Error getting all users:', err);
+      throw err;
+    }
+  }
+  
+  /**
+   * Get total count of users
+   * @returns {Promise} - Resolves with the count
+   */
+  static async count() {
+    try {
+      const result = await pool.query("SELECT COUNT(*) as count FROM users");
+      return parseInt(result.rows[0].count);
+    } catch (err) {
+      console.error('Error counting users:', err);
+      throw err;
+    }
+  }
 }
 
 module.exports = User;

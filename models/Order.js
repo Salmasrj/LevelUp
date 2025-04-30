@@ -1,4 +1,4 @@
-const db = require('../db/db');
+const pool = require('../db/db');
 
 class Order {
   /**
@@ -9,70 +9,41 @@ class Order {
    * @param {string} status - Order status ('pending', 'completed', 'cancelled')
    * @returns {Promise} - Resolves with the created order
    */
-  static createWithItems(userId, totalAmount, items, status = 'completed') {
-    return new Promise((resolve, reject) => {
-      // Begin transaction
-      db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        
-        // Insert order
-        db.run(
-          "INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)",
-          [userId, totalAmount, status],
-          function(err) {
-            if (err) {
-              db.run('ROLLBACK');
-              return reject(err);
-            }
-            
-            const orderId = this.lastID;
-            const orderItems = [];
-            let itemsProcessed = 0;
-            
-            // Insert each order item
-            items.forEach(item => {
-              db.run(
-                "INSERT INTO order_items (order_id, course_id, price) VALUES (?, ?, ?)",
-                [orderId, item.course.id, item.course.price],
-                function(err) {
-                  if (err) {
-                    db.run('ROLLBACK');
-                    return reject(err);
-                  }
-                  
-                  orderItems.push({
-                    id: this.lastID,
-                    course_id: item.course.id,
-                    price: item.course.price
-                  });
-                  
-                  itemsProcessed++;
-                  
-                  // If all items processed, commit and return
-                  if (itemsProcessed === items.length) {
-                    db.run('COMMIT', async (err) => {
-                      if (err) {
-                        db.run('ROLLBACK');
-                        return reject(err);
-                      }
-                      
-                      try {
-                        // Get the complete order
-                        const order = await Order.findById(orderId);
-                        order.items = orderItems;
-                        resolve(order);
-                      } catch (error) {
-                        reject(error);
-                      }
-                    });
-                  }
-                }
-              );
-            });
-          }
+  static async createWithItems(userId, totalAmount, items, status = 'completed') {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Insert order
+      const orderResult = await client.query(
+        "INSERT INTO orders (user_id, total_amount, status) VALUES ($1, $2, $3) RETURNING *",
+        [userId, totalAmount, status]
+      );
+      
+      const order = orderResult.rows[0];
+      
+      // Insert each order item
+      for (const item of items) {
+        await client.query(
+          "INSERT INTO order_items (order_id, course_id, price) VALUES ($1, $2, $3)",
+          [order.id, item.course.id, item.course.price]
         );
-      });
-    });
+      }
+      
+      await client.query('COMMIT');
+      
+      // Return the complete order with items
+      const completeOrder = await Order.findById(order.id);
+      return completeOrder;
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error creating order with items:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   /**
@@ -80,29 +51,35 @@ class Order {
    * @param {number} id - Order ID
    * @returns {Promise} - Resolves with order object or null
    */
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM orders WHERE id = ?", [id], (err, order) => {
-        if (err) return reject(err);
-        
-        if (!order) {
-          return resolve(null);
-        }
-        
-        // Get order items
-        db.all(`
-          SELECT oi.*, c.title, c.description, c.image_path, c.duration
-          FROM order_items oi
-          INNER JOIN courses c ON oi.course_id = c.id
-          WHERE oi.order_id = ?
-        `, [id], (err, items) => {
-          if (err) return reject(err);
-          
-          order.items = items;
-          resolve(order);
-        });
-      });
-    });
+  static async findById(id) {
+    try {
+      // Get the order
+      const orderResult = await pool.query(
+        "SELECT * FROM orders WHERE id = $1",
+        [id]
+      );
+      
+      const order = orderResult.rows[0];
+      
+      if (!order) {
+        return null;
+      }
+      
+      // Get order items with course details
+      const itemsResult = await pool.query(`
+        SELECT oi.*, c.title, c.description, c.image_path, c.duration
+        FROM order_items oi
+        INNER JOIN courses c ON oi.course_id = c.id
+        WHERE oi.order_id = $1
+      `, [id]);
+      
+      order.items = itemsResult.rows;
+      return order;
+      
+    } catch (error) {
+      console.error('Error finding order by ID:', error);
+      throw error;
+    }
   }
 
   /**
@@ -110,13 +87,18 @@ class Order {
    * @param {number} userId - User ID
    * @returns {Promise} - Resolves with array of orders
    */
-  static getByUser(userId) {
-    return new Promise((resolve, reject) => {
-      db.all("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC", [userId], (err, orders) => {
-        if (err) return reject(err);
-        resolve(orders || []);
-      });
-    });
+  static async getByUser(userId) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC",
+        [userId]
+      );
+      
+      return result.rows || [];
+    } catch (error) {
+      console.error('Error getting orders by user:', error);
+      throw error;
+    }
   }
 
   /**
@@ -125,24 +107,22 @@ class Order {
    * @param {string} status - New status
    * @returns {Promise} - Resolves with updated order
    */
-  static updateStatus(id, status) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        "UPDATE orders SET status = ? WHERE id = ?",
-        [status, id],
-        function(err) {
-          if (err) return reject(err);
-          
-          if (this.changes === 0) {
-            return reject(new Error('Order not found'));
-          }
-          
-          Order.findById(id)
-            .then(order => resolve(order))
-            .catch(err => reject(err));
-        }
+  static async updateStatus(id, status) {
+    try {
+      const result = await pool.query(
+        "UPDATE orders SET status = $1 WHERE id = $2 RETURNING *",
+        [status, id]
       );
-    });
+      
+      if (result.rowCount === 0) {
+        throw new Error('Order not found');
+      }
+      
+      return await Order.findById(id);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      throw error;
+    }
   }
 
   /**
@@ -150,82 +130,115 @@ class Order {
    * @param {number} id - Order ID
    * @returns {Promise} - Resolves with detailed order
    */
-  static getDetailedOrder(id) {
-    return new Promise((resolve, reject) => {
-      db.get(`
+  static async getDetailedOrder(id) {
+    try {
+      // Get order with user details
+      const orderResult = await pool.query(`
         SELECT o.*, u.name, u.email
         FROM orders o
         INNER JOIN users u ON o.user_id = u.id
-        WHERE o.id = ?
-      `, [id], (err, order) => {
-        if (err) return reject(err);
-        
-        if (!order) {
-          return resolve(null);
+        WHERE o.id = $1
+      `, [id]);
+      
+      const order = orderResult.rows[0];
+      
+      if (!order) {
+        return null;
+      }
+      
+      // Get order items with course details
+      const itemsResult = await pool.query(`
+        SELECT oi.*, c.title, c.description, c.image_path, c.duration
+        FROM order_items oi
+        INNER JOIN courses c ON oi.course_id = c.id
+        WHERE oi.order_id = $1
+      `, [id]);
+      
+      // Format the items with nested course objects
+      order.items = itemsResult.rows.map(item => ({
+        ...item,
+        course: {
+          id: item.course_id,
+          title: item.title,
+          description: item.description,
+          image_path: item.image_path,
+          duration: item.duration
         }
-        
-        // Get order items with course details
-        db.all(`
-          SELECT oi.*, c.title, c.description, c.image_path, c.duration
-          FROM order_items oi
-          INNER JOIN courses c ON oi.course_id = c.id
-          WHERE oi.order_id = ?
-        `, [id], (err, items) => {
-          if (err) return reject(err);
-          
-          order.items = items.map(item => ({
-            ...item,
-            course: {
-              id: item.course_id,
-              title: item.title,
-              description: item.description,
-              image_path: item.image_path,
-              duration: item.duration
-            }
-          }));
-          
-          order.user = {
-            id: order.user_id,
-            name: order.name,
-            email: order.email
-          };
-          
-          // Clean up duplicated fields
-          delete order.name;
-          delete order.email;
-          
-          resolve(order);
-        });
-      });
-    });
+      }));
+      
+      // Create user object
+      order.user = {
+        id: order.user_id,
+        name: order.name,
+        email: order.email
+      };
+      
+      // Clean up duplicated fields
+      delete order.name;
+      delete order.email;
+      
+      return order;
+    } catch (error) {
+      console.error('Error getting detailed order:', error);
+      throw error;
+    }
   }
+
   /**
- * Get total count of orders
- * @returns {Promise} - Resolves with the count
- */
-static count() {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT COUNT(*) as count FROM orders", (err, result) => {
-        if (err) return reject(err);
-        resolve(result ? result.count : 0);
-      });
-    });
+   * Get total count of orders
+   * @returns {Promise} - Resolves with the count
+   */
+  static async count() {
+    try {
+      const result = await pool.query("SELECT COUNT(*) as count FROM orders");
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      console.error('Error counting orders:', error);
+      throw error;
+    }
   }
   
   /**
    * Get total revenue from all completed orders
    * @returns {Promise} - Resolves with the total amount
    */
-  static getTotalRevenue() {
-    return new Promise((resolve, reject) => {
-      db.get(
-        "SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'",
-        (err, result) => {
-          if (err) return reject(err);
-          resolve(result ? (result.revenue || 0) : 0);
-        }
+  static async getTotalRevenue() {
+    try {
+      const result = await pool.query(
+        "SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'"
       );
-    });
+      
+      return result.rows[0] ? parseFloat(result.rows[0].revenue) || 0 : 0;
+    } catch (error) {
+      console.error('Error getting total revenue:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get all orders with basic user information
+   * @returns {Promise} - Resolves with array of orders
+   */
+  static async getAll() {
+    try {
+      const result = await pool.query(`
+        SELECT o.*, u.name, u.email
+        FROM orders o
+        INNER JOIN users u ON o.user_id = u.id
+        ORDER BY o.created_at DESC
+      `);
+      
+      return result.rows.map(order => ({
+        ...order,
+        user: {
+          name: order.name,
+          email: order.email
+        }
+      }));
+    } catch (error) {
+      console.error('Error getting all orders:', error);
+      throw error;
+    }
   }
 }
 

@@ -1,180 +1,184 @@
 /**
- * Database initialization script
+ * PostgreSQL database initialization script
  * Creates tables and adds seed data for LevelUp e-learning platform
  */
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
-const fs = require('fs');
-require('dotenv').config();
+const dotenv = require('dotenv');
 
-// Get database path from .env or use default
-const dbPath = process.env.DB_PATH 
-  ? path.resolve(process.env.DB_PATH) 
-  : path.join(__dirname, 'database.sqlite');
+// Load environment variables
+dotenv.config();
 
-// Ensure db directory exists
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+// Create a new pool
+const pool = new Pool({
+  host: process.env.PGHOST || 'localhost',
+  user: process.env.PGUSER || 'postgres',
+  password: process.env.PGPASSWORD || '',
+  database: process.env.PGDATABASE || 'levelup',
+  port: process.env.PGPORT || 5432,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Tables creation function
+async function createTables() {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    console.log('Creating tables...');
+    
+    // Users table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        is_admin BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Courses table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS courses (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        price NUMERIC(10,2) NOT NULL,
+        duration VARCHAR(100),
+        image_path VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Orders table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        total_amount NUMERIC(10,2) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Order items table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE RESTRICT,
+        price NUMERIC(10,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // User progress table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_progress (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        progress INTEGER NOT NULL DEFAULT 0,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, course_id)
+      )
+    `);
+
+    await client.query('COMMIT');
+    console.log('Tables created successfully');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('Error creating tables:', e);
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
-console.log(`Initializing database at: ${dbPath}`);
-
-// Connect to database (creates file if it doesn't exist)
-const db = new sqlite3.Database(dbPath);
-
-// Enable foreign keys
-db.run('PRAGMA foreign_keys = ON');
-
-// Create tables
-db.serialize(() => {
-  // Users table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      is_admin INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Courses table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      description TEXT,
-      price REAL NOT NULL,
-      duration TEXT,
-      image_path TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Orders table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS orders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      total_amount REAL NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    )
-  `);
-
-  // Order items table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS order_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      course_id INTEGER NOT NULL,
-      price REAL NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
-      FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE RESTRICT
-    )
-  `);
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_progress (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      course_id INTEGER NOT NULL,
-      progress INTEGER NOT NULL DEFAULT 0,
-      last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-      FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
-      UNIQUE(user_id, course_id)
-    )
-  `);
-
-  console.log("Tables created successfully.");
-
-  // Check if we already have data
-  db.get('SELECT COUNT(*) as count FROM users', async (err, result) => {
-    if (err) {
-      console.error('Error checking for existing data:', err);
+// Seed data function
+async function seedData() {
+  const client = await pool.connect();
+  
+  try {
+    // Check if data already exists
+    const userCheck = await client.query('SELECT COUNT(*) FROM users');
+    
+    if (parseInt(userCheck.rows[0].count) > 0) {
+      console.log('Data already exists, skipping seeding');
       return;
     }
     
-    // If data exists, don't add sample data
-    if (result && result.count > 0) {
-      console.log('Users already exist, skipping seeding data.');
-      db.close();
-      return;
-    }
-    
-    // Add sample data
     console.log('Seeding database with initial data...');
+    await client.query('BEGIN');
+    
+    // Create admin and test user with hashed passwords
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    
+    // Insert users
+    const adminUser = await client.query(
+      'INSERT INTO users (name, email, password, is_admin) VALUES ($1, $2, $3, $4) RETURNING id',
+      ['Admin User', 'admin@levelup.com', hashedPassword, true]
+    );
+    
+    const regularUser = await client.query(
+      'INSERT INTO users (name, email, password, is_admin) VALUES ($1, $2, $3, $4) RETURNING id',
+      ['Test User', 'user@levelup.com', hashedPassword, false]
+    );
+    
+    console.log('Users created successfully');
+    
+    // Insert courses
+    await client.query(`
+      INSERT INTO courses (title, description, price, duration, image_path) VALUES 
+      ('JavaScript Mastery', 'Maîtrisez JavaScript moderne, des fondamentaux aux fonctionnalités avancées. Apprenez à développer des applications web interactives et dynamiques.', 49.99, '12 heures', '/images/javascript-course.jpg'),
+      ('Full-Stack Web Development', 'Devenez un développeur Full-Stack en apprenant à construire des applications complètes avec Node.js, Express, et React.', 79.99, '24 heures', '/images/fullstack-course.jpg'),
+      ('UI/UX Design Fundamentals', 'Apprenez les principes fondamentaux du design UI/UX et créez des interfaces utilisateur intuitives et attrayantes.', 59.99, '15 heures', '/images/uiux-course.jpg')
+    `);
+    
+    console.log('Courses created successfully');
+    
+    // Create a sample order for test user
+    const order = await client.query(
+      'INSERT INTO orders (user_id, total_amount, status) VALUES ($1, $2, $3) RETURNING id',
+      [regularUser.rows[0].id, 49.99, 'completed']
+    );
+    
+    // Add item to order
+    await client.query(
+      'INSERT INTO order_items (order_id, course_id, price) VALUES ($1, $2, $3)',
+      [order.rows[0].id, 1, 49.99]
+    );
+    
+    console.log('Sample order created successfully');
+    
+    await client.query('COMMIT');
+    console.log('Database initialization complete!');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('Error seeding data:', e);
+    throw e;
+  } finally {
+    client.release();
+  }
+}
 
-    try {
-      // Create admin and test user
-      const hashedPassword = await bcrypt.hash('password123', 10);
-      
-      // Insert admin user
-      db.run(`
-        INSERT INTO users (name, email, password, is_admin) VALUES 
-        ('Admin User', 'admin@levelup.com', ?, 1),
-        ('Test User', 'user@levelup.com', ?, 0)
-      `, [hashedPassword, hashedPassword], function(err) {
-        if (err) {
-          console.error('Error inserting users:', err);
-          return;
-        }
-        console.log('Users created successfully.');
-        
-        // Insert courses
-        db.run(`
-          INSERT INTO courses (title, description, price, duration, image_path) VALUES 
-          ('JavaScript Mastery', 'Maîtrisez JavaScript moderne, des fondamentaux aux fonctionnalités avancées. Apprenez à développer des applications web interactives et dynamiques.', 49.99, '12 heures', '/images/javascript-course.jpg'),
-          ('Full-Stack Web Development', 'Devenez un développeur Full-Stack en apprenant à construire des applications complètes avec Node.js, Express, et React.', 79.99, '24 heures', '/images/fullstack-course.jpg'),
-          ('UI/UX Design Fundamentals', 'Apprenez les principes fondamentaux du design UI/UX et créez des interfaces utilisateur intuitives et attrayantes.', 59.99, '15 heures', '/images/uiux-course.jpg')
-        `, function(err) {
-          if (err) {
-            console.error('Error inserting courses:', err);
-            return;
-          }
-          console.log('Courses created successfully.');
-          
-          // Create a sample order for test user
-          db.run(`
-            INSERT INTO orders (user_id, total_amount, status) VALUES
-            (2, 49.99, 'completed')
-          `, function(err) {
-            if (err) {
-              console.error('Error inserting order:', err);
-              return;
-            }
+// Run initialization
+async function initialize() {
+  try {
+    await createTables();
+    await seedData();
+    console.log('You can now start the application with: npm start');
+  } catch (e) {
+    console.error('Initialization failed:', e);
+  } finally {
+    pool.end();
+  }
+}
 
-            const orderId = this.lastID;
-            
-            // Add item to order
-            db.run(`
-              INSERT INTO order_items (order_id, course_id, price) VALUES
-              (?, 1, 49.99)
-            `, [orderId], function(err) {
-              if (err) {
-                console.error('Error inserting order item:', err);
-                return;
-              }
-              console.log('Sample order created successfully.');
-              
-              console.log('Database initialization complete!');
-              console.log('You can now start the application with: npm start');
-              db.close();
-            });
-          });
-        });
-      });
-    } catch (error) {
-      console.error('Error hashing password:', error);
-      db.close();
-    }
-  });
-});
+initialize();

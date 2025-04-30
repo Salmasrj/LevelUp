@@ -32,7 +32,20 @@ const cartRoutes = require('./routes/cart');
 const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
 const authMiddleware = require('./middlewares/authMiddleware');
+// Database connection check
+const db = require('./db/db');
 
+// Optional: Initialize database if needed
+if (process.env.INITIALIZE_DB) {
+  console.log('Initializing database...');
+  exec('npm run init-db', (error) => {
+    if (error) {
+      console.error('Error initializing database:', error);
+      process.exit(1);
+    }
+    console.log('Database initialized successfully.');
+  });
+}
 const app = express();
 const PORT = process.env.PORT || 3000;
 

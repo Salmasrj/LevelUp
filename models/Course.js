@@ -1,17 +1,18 @@
-const db = require('../db/db');
+const pool = require('../db/db');
 
 class Course {
   /**
    * Get all courses
    * @returns {Promise} - Resolves with array of courses
    */
-  static getAll() {
-    return new Promise((resolve, reject) => {
-      db.all("SELECT * FROM courses", (err, courses) => {
-        if (err) return reject(err);
-        resolve(courses || []);
-      });
-    });
+  static async getAll() {
+    try {
+      const result = await pool.query("SELECT * FROM courses");
+      return result.rows;
+    } catch (err) {
+      console.error('Error getting all courses:', err);
+      throw err;
+    }
   }
 
   /**
@@ -19,13 +20,18 @@ class Course {
    * @param {number} id - Course ID
    * @returns {Promise} - Resolves with course object or null
    */
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM courses WHERE id = ?", [id], (err, course) => {
-        if (err) return reject(err);
-        resolve(course || null);
-      });
-    });
+  static async findById(id) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM courses WHERE id = $1",
+        [id]
+      );
+      
+      return result.rows[0] || null;
+    } catch (err) {
+      console.error('Error finding course by ID:', err);
+      throw err;
+    }
   }
 
   /**
@@ -33,37 +39,35 @@ class Course {
    * @param {Object} courseData - Course data
    * @returns {Promise} - Resolves with created course object
    */
-  static create(courseData) {
+  static async create(courseData) {
     const { title, description, price, duration, image_path } = courseData;
     
-    return new Promise((resolve, reject) => {
-      db.run(
-        "INSERT INTO courses (title, description, price, duration, image_path) VALUES (?, ?, ?, ?, ?)",
-        [title, description, price, duration, image_path],
-        function(err) {
-          if (err) return reject(err);
-          
-          // Get and return the created course
-          Course.findById(this.lastID)
-            .then(course => resolve(course))
-            .catch(err => reject(err));
-        }
+    try {
+      const result = await pool.query(
+        "INSERT INTO courses (title, description, price, duration, image_path) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+        [title, description, price, duration, image_path]
       );
-    });
+      
+      return result.rows[0];
+    } catch (err) {
+      console.error('Error creating course:', err);
+      throw err;
+    }
   }
 
   /**
-     * Get total count of courses
-     * @returns {Promise} - Resolves with the count
-     */
-    static count() {
-        return new Promise((resolve, reject) => {
-        db.get("SELECT COUNT(*) as count FROM courses", (err, result) => {
-            if (err) return reject(err);
-            resolve(result ? result.count : 0);
-        });
-        });
+   * Get total count of courses
+   * @returns {Promise} - Resolves with the count
+   */
+  static async count() {
+    try {
+      const result = await pool.query("SELECT COUNT(*) as count FROM courses");
+      return parseInt(result.rows[0].count);
+    } catch (err) {
+      console.error('Error counting courses:', err);
+      throw err;
     }
+  }
 
   /**
    * Update course information
@@ -71,27 +75,30 @@ class Course {
    * @param {Object} updates - Fields to update
    * @returns {Promise} - Resolves with updated course
    */
-  static update(id, updates) {
+  static async update(id, updates) {
     const allowedFields = ['title', 'description', 'price', 'duration', 'image_path'];
     const fields = Object.keys(updates).filter(key => allowedFields.includes(key));
     
     if (fields.length === 0) {
-      return Course.findById(id);
+      return this.findById(id);
     }
     
-    const setClause = fields.map(field => `${field} = ?`).join(', ');
+    // Build dynamic query
+    const setClause = fields.map((field, i) => `${field} = $${i + 1}`).join(', ');
     const values = fields.map(field => updates[field]);
-    values.push(id);
+    values.push(id); // Add ID for WHERE clause
     
-    return new Promise((resolve, reject) => {
-      db.run(`UPDATE courses SET ${setClause} WHERE id = ?`, values, function(err) {
-        if (err) return reject(err);
-        
-        Course.findById(id)
-          .then(course => resolve(course))
-          .catch(err => reject(err));
-      });
-    });
+    try {
+      const result = await pool.query(
+        `UPDATE courses SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`,
+        values
+      );
+      
+      return result.rows[0];
+    } catch (err) {
+      console.error('Error updating course:', err);
+      throw err;
+    }
   }
 
   /**
@@ -99,37 +106,44 @@ class Course {
    * @param {number} id - Course ID
    * @returns {Promise} - Resolves with boolean success
    */
-  static delete(id) {
-    return new Promise((resolve, reject) => {
-      db.run("DELETE FROM courses WHERE id = ?", [id], function(err) {
-        if (err) return reject(err);
-        resolve(this.changes > 0);
-      });
-    });
+  static async delete(id) {
+    try {
+      const result = await pool.query(
+        "DELETE FROM courses WHERE id = $1",
+        [id]
+      );
+      
+      return result.rowCount > 0;
+    } catch (err) {
+      console.error('Error deleting course:', err);
+      throw err;
+    }
   }
 
   /**
-     * Get courses purchased by a user with actual progress
-     * @param {number} userId - User ID
-     * @returns {Promise} - Resolves with array of courses with progress
-     */
-    static getPurchasedByUser(userId) {
-        return new Promise((resolve, reject) => {
-        db.all(`
-            SELECT c.*, oi.price, 
-            COALESCE(up.progress, 0) as progress
-            FROM courses c
-            INNER JOIN order_items oi ON c.id = oi.course_id
-            INNER JOIN orders o ON oi.order_id = o.id
-            LEFT JOIN user_progress up ON c.id = up.course_id AND o.user_id = up.user_id
-            WHERE o.user_id = ? AND o.status = 'completed'
-            GROUP BY c.id
-        `, [userId], (err, courses) => {
-            if (err) return reject(err);
-            resolve(courses || []);
-        });
-        });
+   * Get courses purchased by a user with actual progress
+   * @param {number} userId - User ID
+   * @returns {Promise} - Resolves with array of courses with progress
+   */
+  static async getPurchasedByUser(userId) {
+    try {
+      const result = await pool.query(`
+        SELECT c.*, oi.price, 
+        COALESCE(up.progress, 0) as progress
+        FROM courses c
+        INNER JOIN order_items oi ON c.id = oi.course_id
+        INNER JOIN orders o ON oi.order_id = o.id
+        LEFT JOIN user_progress up ON c.id = up.course_id AND o.user_id = up.user_id
+        WHERE o.user_id = $1 AND o.status = 'completed'
+        GROUP BY c.id, oi.price, up.progress
+      `, [userId]);
+      
+      return result.rows;
+    } catch (err) {
+      console.error('Error getting purchased courses:', err);
+      throw err;
     }
+  }
   
   /**
    * Update user progress in a course
@@ -138,18 +152,20 @@ class Course {
    * @param {number} progress - Progress percentage (0-100)
    * @returns {Promise} - Resolves with boolean success
    */
-  static updateProgress(userId, courseId, progress) {
-    return new Promise((resolve, reject) => {
-      db.run(`
+  static async updateProgress(userId, courseId, progress) {
+    try {
+      const result = await pool.query(`
         INSERT INTO user_progress (user_id, course_id, progress, last_activity)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(user_id, course_id) 
-        DO UPDATE SET progress = ?, last_activity = CURRENT_TIMESTAMP
-      `, [userId, courseId, progress, progress], function(err) {
-        if (err) return reject(err);
-        resolve(this.changes > 0);
-      });
-    });
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id, course_id) 
+        DO UPDATE SET progress = $3, last_activity = CURRENT_TIMESTAMP
+      `, [userId, courseId, progress]);
+      
+      return result.rowCount > 0;
+    } catch (err) {
+      console.error('Error updating course progress:', err);
+      throw err;
+    }
   }
 }
 
