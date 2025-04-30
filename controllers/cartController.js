@@ -1,3 +1,23 @@
+const Course = require('../models/Course');
+
+function initializeCart(req) {
+  if (!req.session.cart) {
+    req.session.cart = {
+      items: [],
+      total: 0
+    };
+  }
+  return req.session.cart;
+}
+
+// Add the getCart function referenced in routes/cart.js
+exports.getCart = (req, res) => {
+  res.render('cart', {
+    cart: req.session.cart || { items: [], total: 0 },
+    user: req.session.user
+  });
+};
+
 // Add to cart function
 exports.addToCart = async (req, res) => {
   try {

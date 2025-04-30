@@ -240,6 +240,23 @@ class Order {
       throw error;
     }
   }
+  /**
+   * Get total revenue from all completed orders
+   * @returns {Promise} - Resolves with the total amount
+   */
+  static async getTotalRevenue() {
+    try {
+      const result = await pool.query(
+        "SELECT SUM(total_amount) as total FROM orders WHERE status = 'completed'"
+      );
+      return parseFloat(result.rows[0].total || 0);
+    } catch (error) {
+      console.error('Error getting total revenue:', error);
+      return 0;
+    }
+  }
 }
+
+
 
 module.exports = Order;

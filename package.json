@@ -27,7 +27,7 @@
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "nodemailer": "^6.9.7",
-    "pg": "^8.15.6",
+    "pg": "^8.11.3",
     "stripe": "^14.3.0"
   },
   "devDependencies": {
