@@ -110,7 +110,8 @@ async function startServer() {
 
   // THIS IS THE CRITICAL PART - Start listening on the port
   return new Promise((resolve) => {
-    const server = app.listen(PORT, () => {
+    // In the startServer function, modify the app.listen call:
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://localhost:${PORT}`);
       resolve(server);
     });
