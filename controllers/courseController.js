@@ -5,7 +5,10 @@ const Course = require('../models/Course');
 exports.getAllCourses = async (req, res) => {
     try {
       const courses = await Course.getAll();
-      
+      courses.forEach(course => {
+        course.price = parseFloat(course.price);
+      });
+
       // Handle cart message
       let notification = null;
       if (req.query.message) {
